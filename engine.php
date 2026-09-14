@@ -248,6 +248,10 @@ class PanelEngine {
             $db->exec("ALTER TABLE domains ADD COLUMN geoip_countries TEXT DEFAULT ''");
         } catch (Exception $e) {}
 
+        try {
+            $db->exec("ALTER TABLE domains ADD COLUMN local_domain TEXT DEFAULT ''");
+        } catch (Exception $e) {}
+
         // Default Settings
         $defaults = [
             'admin_password' => password_hash('admin123', PASSWORD_BCRYPT),
@@ -470,6 +474,46 @@ maxretry = {$maxretry}
             }
 
             $siteConf .= "}\n";
+
+            // Dedicated Local Domain / Bypass vHost (0% Rate Limit & Unrestricted)
+            $localDomain = trim($d['local_domain'] ?? '');
+            if (!empty($localDomain)) {
+                $siteConf .= "\n# Local Bypass Domain (No Rate Limiting / Internal Access)\n";
+                $siteConf .= "server {\n";
+                $siteConf .= "    listen 80;\n";
+                $siteConf .= "    server_name {$localDomain};\n\n";
+
+                if ($d['target_type'] === 'proxy') {
+                    $proxyUrl = $d['target_value'];
+                    $siteConf .= "    location / {\n";
+                    $siteConf .= "        proxy_pass {$proxyUrl};\n";
+                    $siteConf .= "        proxy_set_header Host \$host;\n";
+                    $siteConf .= "        proxy_set_header X-Real-IP \$remote_addr;\n";
+                    $siteConf .= "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n";
+                    $siteConf .= "        proxy_set_header X-Forwarded-Proto \$scheme;\n";
+                    $siteConf .= "        proxy_http_version 1.1;\n";
+                    $siteConf .= "        proxy_set_header Upgrade \$http_upgrade;\n";
+                    $siteConf .= "        proxy_set_header Connection \"upgrade\";\n";
+                    $siteConf .= "        proxy_connect_timeout 60s;\n";
+                    $siteConf .= "        proxy_read_timeout 60s;\n";
+                    $siteConf .= "        proxy_send_timeout 60s;\n";
+                    $siteConf .= "    }\n";
+                } else {
+                    $docRoot = !empty($d['target_value']) ? $d['target_value'] : '/var/www/html';
+                    $siteConf .= "    root {$docRoot};\n";
+                    $siteConf .= "    index index.php index.html index.htm;\n\n";
+                    $siteConf .= "    location / {\n";
+                    $siteConf .= "        try_files \$uri \$uri/ /index.php?\$query_string;\n";
+                    $siteConf .= "    }\n\n";
+                    $siteConf .= "    location ~ \\.php$ {\n";
+                    $siteConf .= "        include snippets/fastcgi-php.conf;\n";
+                    $siteConf .= "        fastcgi_pass unix:/run/php/php8.3-fpm.sock;\n";
+                    $siteConf .= "        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;\n";
+                    $siteConf .= "        include fastcgi_params;\n";
+                    $siteConf .= "    }\n";
+                }
+                $siteConf .= "}\n";
+            }
 
             $cleanFileName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $d['domain']);
             file_put_contents(self::$confDir . "/domain_{$cleanFileName}.conf", $siteConf);

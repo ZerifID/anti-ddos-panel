@@ -307,6 +307,7 @@ if (isset($_GET['api'])) {
         $data = json_decode(file_get_contents('php://input'), true);
         $id = !empty($data['id']) ? intval($data['id']) : 0;
         $domain = trim($data['domain'] ?? '');
+        $localDomain = trim($data['local_domain'] ?? '');
         $targetType = $data['target_type'] ?? 'local_php';
         $targetValue = trim($data['target_value'] ?? '');
         $isWildcard = !empty($data['is_wildcard']) ? 1 : 0;
@@ -327,11 +328,11 @@ if (isset($_GET['api'])) {
         }
 
         if ($id > 0) {
-            $stmt = $db->prepare("UPDATE domains SET domain=?, target_type=?, target_value=?, is_wildcard=?, cf_zone_id=?, custom_rate_limit=?, custom_rate_burst=?, custom_conn_limit=?, require_zt_access=?, status=? WHERE id=?");
-            $stmt->execute([$domain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $status, $id]);
+            $stmt = $db->prepare("UPDATE domains SET domain=?, local_domain=?, target_type=?, target_value=?, is_wildcard=?, cf_zone_id=?, custom_rate_limit=?, custom_rate_burst=?, custom_conn_limit=?, require_zt_access=?, status=? WHERE id=?");
+            $stmt->execute([$domain, $localDomain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $status, $id]);
         } else {
-            $stmt = $db->prepare("INSERT INTO domains (domain, target_type, target_value, is_wildcard, cf_zone_id, custom_rate_limit, custom_rate_burst, custom_conn_limit, require_zt_access, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$domain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $status]);
+            $stmt = $db->prepare("INSERT INTO domains (domain, local_domain, target_type, target_value, is_wildcard, cf_zone_id, custom_rate_limit, custom_rate_burst, custom_conn_limit, require_zt_access, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$domain, $localDomain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $status]);
         }
 
         $syncRes = PanelEngine::syncNginx();
@@ -549,7 +550,7 @@ async function handleLogin(e) {
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-800/60 border-b border-slate-700 text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                            <th class="p-4">Domain / Wildcard</th>
+                            <th class="p-4">Domain / Local Bypass</th>
                             <th class="p-4">Target Type</th>
                             <th class="p-4">Destination</th>
                             <th class="p-4">Per-IP Rate Limit</th>
@@ -957,8 +958,16 @@ async function handleLogin(e) {
             <input type="hidden" id="form_domain_id" value="0">
             
             <div class="mb-4">
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Domain Name</label>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Domain Name (Public)</label>
                 <input type="text" id="form_domain_name" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white" placeholder="contoh: zerif.id atau app.domain.com" required>
+            </div>
+
+            <div class="mb-4 p-3 bg-emerald-950/20 border border-emerald-800/40 rounded-lg">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-emerald-300 mb-1">
+                    <i class="fa-solid fa-network-wired mr-1"></i>Custom Local / Internal Domain (Bypass Rate Limit)
+                </label>
+                <input type="text" id="form_local_domain" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono text-sm" placeholder="opsional: contoh app.local atau app.zerif.lan">
+                <span class="text-xs text-slate-400 mt-1 block">Domain ini bebas proteksi rate limit/connection limit (0% limit), sangat cocok untuk akses internal, LAN, atau VPN Tailscale.</span>
             </div>
 
             <div class="mb-4">
@@ -1194,9 +1203,18 @@ async function loadDashboardData() {
             } else {
                 tbody.innerHTML = json.domains.map(d => `
                     <tr class="hover:bg-slate-800/40 transition">
-                        <td class="p-4 font-medium text-white flex items-center space-x-2">
-                            <span>${escapeHtml(d.domain)}</span>
-                            ${d.is_wildcard == 1 ? '<span class="px-2 py-0.5 text-xs rounded bg-purple-500/20 text-purple-300 font-mono">*.${escapeHtml(d.domain)}</span>' : ''}
+                        <td class="p-4 font-medium text-white space-y-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold">${escapeHtml(d.domain)}</span>
+                                ${d.is_wildcard == 1 ? '<span class="px-2 py-0.5 text-xs rounded bg-purple-500/20 text-purple-300 font-mono">*.${escapeHtml(d.domain)}</span>' : ''}
+                            </div>
+                            ${d.local_domain ? `
+                                <div class="flex items-center space-x-1 text-xs text-emerald-400 font-mono">
+                                    <i class="fa-solid fa-network-wired text-[10px]"></i>
+                                    <span>Local Bypass: <b>${escapeHtml(d.local_domain)}</b></span>
+                                    <span class="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded text-[10px]">No Limit</span>
+                                </div>
+                            ` : ''}
                         </td>
                         <td class="p-4">
                             <span class="px-2 py-1 text-xs rounded font-medium ${d.target_type === 'local_php' ? 'bg-blue-500/20 text-blue-300' : 'bg-amber-500/20 text-amber-300'}">
@@ -1704,6 +1722,7 @@ function openDomainModal() {
     document.getElementById('modalTitle').innerText = 'Tambah Konfigurasi Domain';
     document.getElementById('form_domain_id').value = '0';
     document.getElementById('form_domain_name').value = '';
+    document.getElementById('form_local_domain').value = '';
     document.getElementById('form_is_wildcard').checked = false;
     document.getElementById('form_require_zt_access').checked = false;
     document.getElementById('form_target_type').value = 'local_php';
@@ -1721,6 +1740,7 @@ function editDomain(id) {
     document.getElementById('modalTitle').innerText = 'Edit Domain: ' + d.domain;
     document.getElementById('form_domain_id').value = d.id;
     document.getElementById('form_domain_name').value = d.domain;
+    document.getElementById('form_local_domain').value = d.local_domain || '';
     document.getElementById('form_is_wildcard').checked = d.is_wildcard == 1;
     document.getElementById('form_require_zt_access').checked = d.require_zt_access == 1;
     document.getElementById('form_target_type').value = d.target_type;
@@ -1744,6 +1764,7 @@ async function saveDomain(e) {
     const payload = {
         id: document.getElementById('form_domain_id').value,
         domain: document.getElementById('form_domain_name').value,
+        local_domain: document.getElementById('form_local_domain').value,
         is_wildcard: document.getElementById('form_is_wildcard').checked ? 1 : 0,
         require_zt_access: document.getElementById('form_require_zt_access').checked ? 1 : 0,
         target_type: document.getElementById('form_target_type').value,
