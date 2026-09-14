@@ -69,10 +69,11 @@ class CloudflareAPI {
     }
 
     public static function deleteIpAccessRuleByIp($zoneId, $ip, $apiKey, $apiEmail = '') {
-        $rules = self::getIpAccessRules($zoneId, $apiKey, $apiEmail);
+        $ipEncoded = urlencode(trim($ip));
+        $rules = self::request("/zones/{$zoneId}/firewall/access_rules/rules?configuration.value={$ipEncoded}", 'GET', [], $apiKey, $apiEmail);
         if (!empty($rules['result'])) {
             foreach ($rules['result'] as $r) {
-                if (isset($r['configuration']['value']) && $r['configuration']['value'] === $ip) {
+                if (isset($r['id'])) {
                     self::deleteIpAccessRule($zoneId, $r['id'], $apiKey, $apiEmail);
                 }
             }

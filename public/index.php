@@ -361,10 +361,22 @@ if (isset($_GET['api'])) {
             shell_exec("sudo /usr/sbin/nginx -t 2>/dev/null && sudo /usr/sbin/nginx -s reload 2>/dev/null");
         }
 
-        // 3. Sync & Reload Fail2ban
+        // 3. Sync with Cloudflare if configured
+        $apiKey = $settings['cf_api_key'] ?? '';
+        $apiEmail = $settings['cf_api_email'] ?? '';
+        $zoneId = $settings['cf_default_zone_id'] ?? '';
+        if (empty($zoneId) && !empty($apiKey) && !empty($apiEmail)) {
+            $zones = CloudflareAPI::getZones($apiKey, $apiEmail);
+            $zoneId = $zones['result'][0]['id'] ?? '';
+        }
+        if (!empty($zoneId) && !empty($apiKey)) {
+            CloudflareAPI::deleteAllIpAccessRules($zoneId, $apiKey, $apiEmail);
+        }
+
+        // 4. Sync & Reload Fail2ban
         shell_exec("sudo fail2ban-client reload 2>&1");
 
-        echo json_encode(['status' => true, 'message' => 'Semua IP yang terblokir berhasil di-unban & dibersihkan!']);
+        echo json_encode(['status' => true, 'message' => 'Semua IP yang terblokir berhasil di-unban & dibersihkan dari Nginx dan Cloudflare!']);
         exit;
     }
 

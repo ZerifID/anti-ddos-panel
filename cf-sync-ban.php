@@ -21,28 +21,33 @@ try {
     $zoneId = $settings['cf_default_zone_id'] ?? '';
     $mode = $settings['cf_auto_ban_mode'] ?? 'block';
 
-    if (!$autoSync || empty($apiKey) || empty($apiEmail) || empty($zoneId)) {
+    if (!$autoSync || empty($apiKey) || empty($apiEmail)) {
+        exit(0);
+    }
+
+    // If default zone id is empty in settings, auto-detect active zone from Cloudflare account
+    if (empty($zoneId)) {
+        $zones = CloudflareAPI::getZones($apiKey, $apiEmail);
+        if (!empty($zones['result'][0]['id'])) {
+            $zoneId = $zones['result'][0]['id'];
+        }
+    }
+
+    if (empty($zoneId)) {
         exit(0);
     }
 
     if ($action === 'ban') {
-        CloudflareAPI::addIpAccessRule(
+        CloudflareAPI::blockIpOnCloudflare(
             $zoneId,
-            $apiKey,
-            $apiEmail,
             $ip,
             $mode,
-            'Auto-banned by Fail2ban Anti-DDoS Panel'
+            'Auto-banned by Fail2ban Anti-DDoS Panel',
+            $apiKey,
+            $apiEmail
         );
     } elseif ($action === 'unban') {
-        $rules = CloudflareAPI::getIpAccessRules($zoneId, $apiKey, $apiEmail);
-        if (is_array($rules)) {
-            foreach ($rules as $r) {
-                if (isset($r['configuration']['value']) && $r['configuration']['value'] === $ip) {
-                    CloudflareAPI::deleteIpAccessRule($zoneId, $apiKey, $apiEmail, $r['id']);
-                }
-            }
-        }
+        CloudflareAPI::deleteIpAccessRuleByIp($zoneId, $ip, $apiKey, $apiEmail);
     }
 } catch (Exception $e) {
     // Silent fail in background
