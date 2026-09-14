@@ -81,17 +81,35 @@ class CloudflareAPI {
     }
 
     public static function deleteAllIpAccessRules($zoneId, $apiKey, $apiEmail = '') {
-        $rules = self::getIpAccessRules($zoneId, $apiKey, $apiEmail);
-        $deleted = 0;
-        if (!empty($rules['result'])) {
-            foreach ($rules['result'] as $r) {
+        $totalDeleted = 0;
+        $maxLoops = 20; // safety limit to prevent infinite loops
+        $loop = 0;
+
+        while ($loop < $maxLoops) {
+            $loop++;
+            $rules = self::getIpAccessRules($zoneId, $apiKey, $apiEmail);
+            $items = $rules['result'] ?? [];
+            if (empty($items)) {
+                break;
+            }
+
+            foreach ($items as $r) {
                 if (isset($r['id'])) {
-                    self::deleteIpAccessRule($zoneId, $r['id'], $apiKey, $apiEmail);
-                    $deleted++;
+                    $delRes = self::deleteIpAccessRule($zoneId, $r['id'], $apiKey, $apiEmail);
+                    if (!empty($delRes['success'])) {
+                        $totalDeleted++;
+                    }
+                    usleep(50000); // 50ms pause to avoid Cloudflare rate limits (code 971)
                 }
             }
         }
-        return ['status' => true, 'deleted_count' => $deleted];
+
+        // Also ensure Custom WAF ruleset is empty
+        try {
+            self::request("/zones/{$zoneId}/rulesets/phases/http_request_firewall_custom/entrypoint", 'PUT', ['rules' => []], $apiKey, $apiEmail);
+        } catch (Exception $e) {}
+
+        return ['status' => true, 'deleted_count' => $totalDeleted];
     }
 
     public static function purgeCache($zoneId, $apiKey, $apiEmail = '') {
