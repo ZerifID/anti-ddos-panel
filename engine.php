@@ -164,6 +164,8 @@ class CloudflareAPI {
     public static function deleteAccessApp($zoneId, $appId, $apiKey, $apiEmail = '') {
         return self::request("/zones/{$zoneId}/access/apps/{$appId}", 'DELETE', [], $apiKey, $apiEmail);
     }
+}
+
 class PanelEngine {
     private static $dbPath = '/opt/ddos-panel/data/panel.db';
     private static $confDir = '/etc/nginx/sites-dynamic';
