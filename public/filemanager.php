@@ -14,16 +14,12 @@ define('VERSION', '2.6');
 
 //Application Title
 define('APP_TITLE', 'Tiny File Manager');
-
-// --- EDIT BELOW CONFIGURATION CAREFULLY ---
-
 // --- PANEL SESSION INTEGRATION ---
 require_once __DIR__ . '/../engine.php';
 PanelEngine::initDB();
 $panelSettings = PanelEngine::getSettings();
-$adminHash = $panelSettings['admin_password'] ?? '$2y$10$Cx13VvO5Lu1fP4wcN88GdeLbIBM3TNcpFQa3Vi2soZrI5AYtJc2KS';
+$adminHash = $panelSettings['admin_password'] ?? '$2y$10';
 
-// Session bridge: if already logged in to Anti-DDoS panel, bypass filemanager login
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -34,21 +30,60 @@ if (!empty($_SESSION['logged_in'])) {
     $_SESSION[FM_SESSION_ID]['logged'] = 'admin';
 }
 
-$use_auth = true;
-$auth_users = array(
-    'admin' => $adminHash
-);
-$readonly_users = array();
-$global_readonly = false;
-$directories_users = array();
-$use_highlightjs = true;
-$highlightjs_style = 'vs';
-$edit_files = true;
-$default_timezone = 'Asia/Jakarta';
-$root_path = '';
-$root_url = '';
-$http_host = $_SERVER['HTTP_HOST'];
+// --- EDIT BELOW CONFIGURATION CAREFULLY ---
 
+// Auth with login/password
+// set true/false to enable/disable it
+// Is independent from IP white- and blacklisting
+$use_auth = true;
+
+// Login user name and password
+// Users: array('Username' => 'Password', 'Username2' => 'Password2', ...)
+// Generate secure password hash - https://tinyfilemanager.github.io/docs/pwd.html
+$auth_users = array(
+    'admin' => '$2y$10$/K.hjNr84lLNDt8fTXjoI.DBp6PpeyoJ.mGwrrLuCZfAwfSAGqhOW', //admin@123
+    'user' => '$2y$10$Fg6Dz8oH9fPoZ2jJan5tZuv6Z4Kp7avtQ9bDfrdRntXtPeiMAZyGO' //12345
+);
+
+// Readonly users
+// e.g. array('users', 'guest', ...)
+$readonly_users = array(
+    'user'
+);
+
+// Global readonly, including when auth is not being used
+$global_readonly = false;
+
+// user specific directories
+// array('Username' => 'Directory path', 'Username2' => 'Directory path', ...)
+$directories_users = array();
+
+// Enable highlight.js (https://highlightjs.org/) on view's page
+$use_highlightjs = true;
+
+// highlight.js style
+// for dark theme use 'ir-black'
+$highlightjs_style = 'vs';
+
+// Enable ace.js (https://ace.c9.io/) on view's page
+$edit_files = true;
+
+// Default timezone for date() and time()
+// Doc - http://php.net/manual/en/timezones.php
+$default_timezone = 'Etc/UTC'; // UTC
+
+// Root path for file manager
+// use absolute path of directory i.e: '/var/www/folder' or $_SERVER['DOCUMENT_ROOT'].'/folder'
+//make sure update $root_url in next section
+$root_path = '/';
+
+// Root url for links in file manager.Relative to $http_host. Variants: '', 'path/to/subfolder'
+// Will not working if $root_path will be outside of server document root
+$root_url = '';
+
+// Server hostname. Can set manually if wrong
+// $_SERVER['HTTP_HOST'].'/folder'
+$http_host = $_SERVER['HTTP_HOST'];
 
 // input encoding for iconv
 $iconv_input_encoding = 'UTF-8';
@@ -417,11 +452,9 @@ if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'])) {
 }
 
 // clean and check $root_path
+$root_path = rtrim($root_path, '\\/');
 $root_path = str_replace('\\', '/', $root_path);
-if ($root_path !== '/' && $root_path !== '') {
-    $root_path = rtrim($root_path, '/');
-}
-if (!@is_dir($root_path === '' ? '/' : $root_path)) {
+if (!@is_dir($root_path)) {
     echo "<h1>" . lng('Root path') . " \"{$root_path}\" " . lng('not found!') . " </h1>";
     exit;
 }
@@ -487,6 +520,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
     if (isset($_POST['type']) && $_POST['type'] == "save") {
         // get current path
         $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
         }
@@ -592,6 +626,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
     //upload using url
     if (isset($_POST['type']) && $_POST['type'] == "upload" && !empty($_REQUEST["uploadurl"])) {
         $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
         }
@@ -685,6 +720,7 @@ if (isset($_GET['del'], $_POST['token']) && !FM_READONLY) {
     $del = str_replace('/', '', fm_clean_path($_GET['del']));
     if ($del != '' && $del != '..' && $del != '.' && verifyToken($_POST['token'])) {
         $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
         }
@@ -709,6 +745,7 @@ if (isset($_POST['newfilename'], $_POST['newfile'], $_POST['token']) && !FM_READ
     $new = str_replace('/', '', fm_clean_path(strip_tags($_POST['newfilename'])));
     if (fm_isvalid_filename($new) && $new != '' && $new != '..' && $new != '.' && verifyToken($_POST['token'])) {
         $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
         }
@@ -821,6 +858,7 @@ if (isset($_POST['file'], $_POST['copy_to'], $_POST['finish'], $_POST['token']) 
 
     // from
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
@@ -898,6 +936,7 @@ if (isset($_POST['rename_from'], $_POST['rename_to'], $_POST['token']) && !FM_RE
     $new = str_replace('/', '', $new);
     // path
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
@@ -930,6 +969,7 @@ if (isset($_GET['dl'], $_POST['token'])) {
 
     // Define the file path
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
@@ -972,6 +1012,7 @@ if (!empty($_FILES) && !FM_READONLY) {
 
     $f = $_FILES;
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     $ds = DIRECTORY_SEPARATOR;
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
@@ -1105,6 +1146,7 @@ if (isset($_POST['group'], $_POST['delete'], $_POST['token']) && !FM_READONLY) {
     }
 
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
@@ -1142,6 +1184,7 @@ if (isset($_POST['group'], $_POST['token']) && (isset($_POST['zip']) || isset($_
     }
 
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     $ext = 'zip';
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
@@ -1212,6 +1255,7 @@ if (isset($_POST['unzip'], $_POST['token']) && !FM_READONLY) {
     $isValid = false;
 
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
@@ -1278,6 +1322,7 @@ if (isset($_POST['chmod'], $_POST['token']) && !FM_READONLY && !FM_IS_WIN) {
     }
 
     $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
     if (FM_PATH != '') {
         $path .= '/' . FM_PATH;
     }
@@ -1334,6 +1379,7 @@ if (isset($_POST['chmod'], $_POST['token']) && !FM_READONLY && !FM_IS_WIN) {
 
 // get current path
 $path = FM_ROOT_PATH;
+    if ($path === '/') { $path = ''; }
 if (FM_PATH != '') {
     $path .= '/' . FM_PATH;
 }
