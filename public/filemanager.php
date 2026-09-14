@@ -267,20 +267,11 @@ if (defined('FM_EMBED')) {
         mb_regex_encoding('UTF-8');
     }
 
-    session_cache_limiter('nocache'); // Prevent logout issue after page was cached
-    session_name(FM_SESSION_ID);
-    function session_error_handling_function($code, $msg, $file, $line)
-    {
-        // Permission denied for default session, try to create a new one
-        if ($code == 2) {
-            session_abort();
-            session_id(session_create_id());
-            @session_start();
-        }
+    if (session_status() === PHP_SESSION_NONE) {
+        session_cache_limiter('nocache');
+        session_name(FM_SESSION_ID);
+        session_start();
     }
-    set_error_handler('session_error_handling_function');
-    session_start();
-    restore_error_handler();
 }
 
 //Generating CSRF Token
@@ -452,11 +443,12 @@ if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'])) {
 }
 
 // clean and check $root_path
-$root_path = rtrim($root_path, '\\/');
 $root_path = str_replace('\\', '/', $root_path);
-if (!@is_dir($root_path)) {
-    echo "<h1>" . lng('Root path') . " \"{$root_path}\" " . lng('not found!') . " </h1>";
-    exit;
+if ($root_path !== '/' && $root_path !== '') {
+    $root_path = rtrim($root_path, '/');
+}
+if ($root_path === '' || !@is_dir($root_path)) {
+    $root_path = '/';
 }
 
 defined('FM_SHOW_HIDDEN') || define('FM_SHOW_HIDDEN', $show_hidden_files);
