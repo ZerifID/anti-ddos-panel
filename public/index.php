@@ -304,8 +304,6 @@ if (isset($_GET['api'])) {
         $customBurst = intval($data['custom_rate_burst'] ?? 0);
         $customConn = intval($data['custom_conn_limit'] ?? 0);
         $requireZtAccess = !empty($data['require_zt_access']) ? 1 : 0;
-        $geoipMode = $data['geoip_mode'] ?? 'off';
-        $geoipCountries = strtoupper(trim($data['geoip_countries'] ?? ''));
         $status = isset($data['status']) ? intval($data['status']) : 1;
 
         if (empty($domain)) {
@@ -318,11 +316,11 @@ if (isset($_GET['api'])) {
         }
 
         if ($id > 0) {
-            $stmt = $db->prepare("UPDATE domains SET domain=?, target_type=?, target_value=?, is_wildcard=?, cf_zone_id=?, custom_rate_limit=?, custom_rate_burst=?, custom_conn_limit=?, require_zt_access=?, geoip_mode=?, geoip_countries=?, status=? WHERE id=?");
-            $stmt->execute([$domain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $geoipMode, $geoipCountries, $status, $id]);
+            $stmt = $db->prepare("UPDATE domains SET domain=?, target_type=?, target_value=?, is_wildcard=?, cf_zone_id=?, custom_rate_limit=?, custom_rate_burst=?, custom_conn_limit=?, require_zt_access=?, status=? WHERE id=?");
+            $stmt->execute([$domain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $status, $id]);
         } else {
-            $stmt = $db->prepare("INSERT INTO domains (domain, target_type, target_value, is_wildcard, cf_zone_id, custom_rate_limit, custom_rate_burst, custom_conn_limit, require_zt_access, geoip_mode, geoip_countries, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$domain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $geoipMode, $geoipCountries, $status]);
+            $stmt = $db->prepare("INSERT INTO domains (domain, target_type, target_value, is_wildcard, cf_zone_id, custom_rate_limit, custom_rate_burst, custom_conn_limit, require_zt_access, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$domain, $targetType, $targetValue, $isWildcard, $cfZoneId, $customRate, $customBurst, $customConn, $requireZtAccess, $status]);
         }
 
         $syncRes = PanelEngine::syncNginx();
@@ -943,31 +941,6 @@ async function handleLogin(e) {
                 </label>
             </div>
 
-            <!-- GEOIP COUNTRY FILTER / BLOCKER -->
-            <div class="p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-lg mb-4">
-                <span class="font-bold text-sm text-emerald-400 block mb-2"><i class="fa-solid fa-earth-americas mr-1"></i>Cloudflare Edge WAF GeoIP Blocker</span>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
-                    <div>
-                        <label class="block text-xs text-slate-300 mb-1 font-medium">Mode Proteksi Edge WAF (Cloudflare)</label>
-                        <select id="form_geoip_mode" onchange="toggleGeoIpInput()" class="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white">
-                            <option value="off">Off (Izinkan Semua Negara)</option>
-                            <option value="allow_only">Hanya Izinkan Negara Tertentu (Allow Only)</option>
-                            <option value="block_only">Blokir Negara Tertentu (Block Listed)</option>
-                        </select>
-                    </div>
-                    <div id="geoipCountriesWrapper" class="hidden">
-                        <label class="block text-xs text-slate-300 mb-1 font-medium">Kode Negara (Pisahkan Koma)</label>
-                        <input type="text" id="form_geoip_countries" class="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white font-mono uppercase" placeholder="contoh: ID atau ID,SG,MY">
-                    </div>
-                </div>
-                <div class="flex items-center space-x-2 text-[11px] text-slate-400">
-                    <span>Preset Cepat:</span>
-                    <button type="button" onclick="setGeoPreset('ID')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded border border-slate-700">🇮🇩 Hanya Indonesia (ID)</button>
-                    <button type="button" onclick="setGeoPreset('ID,SG,MY')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded border border-slate-700">🌏 ASEAN (ID,SG,MY)</button>
-                    <button type="button" onclick="setGeoPreset('CN,RU,US')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-red-300 rounded border border-slate-700">🚫 Blokir CN,RU,US</button>
-                </div>
-            </div>
-
             <!-- CUSTOM PER-DOMAIN RATE LIMIT -->
             <div class="p-4 bg-slate-900/70 border border-slate-800 rounded-lg mb-4">
                 <span class="font-bold text-sm text-blue-400 block mb-2"><i class="fa-solid fa-gauge mr-1"></i>Personal / Domain Rate Limit (Khusus Domain Ini)</span>
@@ -1183,18 +1156,9 @@ async function loadDashboardData() {
                             ${d.custom_rate_limit > 0 ? `<span class="text-amber-400 font-semibold">${d.custom_rate_limit} req/s</span>` : '<span class="text-slate-500 text-xs">Global Rule</span>'}
                         </td>
                         <td class="p-4">
-                            <div class="flex flex-col space-y-1">
-                                ${d.require_zt_access == 1 
-                                    ? '<span class="inline-flex items-center px-2 py-0.5 text-[11px] rounded bg-purple-500/20 text-purple-300 font-medium"><i class="fa-solid fa-lock mr-1"></i>ZT OTP</span>' 
-                                    : ''}
-                                ${d.geoip_mode === 'allow_only' 
-                                    ? `<span class="inline-flex items-center px-2 py-0.5 text-[11px] rounded bg-emerald-500/20 text-emerald-300 font-medium" title="Allow only: ${escapeHtml(d.geoip_countries || '')}"><i class="fa-solid fa-shield mr-1"></i>Only: ${escapeHtml(d.geoip_countries || '')}</span>` 
-                                    : ''}
-                                ${d.geoip_mode === 'block_only' 
-                                    ? `<span class="inline-flex items-center px-2 py-0.5 text-[11px] rounded bg-red-500/20 text-red-300 font-medium" title="Blocked: ${escapeHtml(d.geoip_countries || '')}"><i class="fa-solid fa-ban mr-1"></i>Block: ${escapeHtml(d.geoip_countries || '')}</span>` 
-                                    : ''}
-                                ${(!d.require_zt_access && (!d.geoip_mode || d.geoip_mode === 'off')) ? '<span class="text-slate-500 text-xs">Default</span>' : ''}
-                            </div>
+                            ${d.require_zt_access == 1 
+                                ? '<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-purple-500/20 text-purple-300 font-medium"><i class="fa-solid fa-lock mr-1"></i>Enforced</span>' 
+                                : '<span class="text-slate-500 text-xs">Off</span>'}
                         </td>
                         <td class="p-4">
                             <span class="inline-flex items-center px-2 py-0.5 text-xs rounded ${d.status == 1 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}">
@@ -1662,25 +1626,6 @@ async function clearLogs() {
     }
 }
 
-function toggleGeoIpInput() {
-    const mode = document.getElementById('form_geoip_mode').value;
-    const wrapper = document.getElementById('geoipCountriesWrapper');
-    if (mode === 'off') {
-        wrapper.classList.add('hidden');
-    } else {
-        wrapper.classList.remove('hidden');
-    }
-}
-
-function setGeoPreset(countries) {
-    document.getElementById('form_geoip_countries').value = countries;
-    if (countries === 'CN,RU,US') {
-        document.getElementById('form_geoip_mode').value = 'block_only';
-    } else {
-        document.getElementById('form_geoip_mode').value = 'allow_only';
-    }
-    toggleGeoIpInput();
-}
 
 function openDomainModal() {
     document.getElementById('modalTitle').innerText = 'Tambah Konfigurasi Domain';
@@ -1688,14 +1633,11 @@ function openDomainModal() {
     document.getElementById('form_domain_name').value = '';
     document.getElementById('form_is_wildcard').checked = false;
     document.getElementById('form_require_zt_access').checked = false;
-    document.getElementById('form_geoip_mode').value = 'off';
-    document.getElementById('form_geoip_countries').value = '';
     document.getElementById('form_target_type').value = 'local_php';
     document.getElementById('form_target_value').value = '/var/www/html';
     document.getElementById('form_custom_rate').value = '';
     document.getElementById('form_custom_burst').value = '';
     toggleTargetInput();
-    toggleGeoIpInput();
     document.getElementById('domainModal').classList.remove('hidden');
 }
 
@@ -1708,14 +1650,11 @@ function editDomain(id) {
     document.getElementById('form_domain_name').value = d.domain;
     document.getElementById('form_is_wildcard').checked = d.is_wildcard == 1;
     document.getElementById('form_require_zt_access').checked = d.require_zt_access == 1;
-    document.getElementById('form_geoip_mode').value = d.geoip_mode || 'off';
-    document.getElementById('form_geoip_countries').value = d.geoip_countries || '';
     document.getElementById('form_target_type').value = d.target_type;
     document.getElementById('form_target_value').value = d.target_value;
     document.getElementById('form_custom_rate').value = d.custom_rate_limit > 0 ? d.custom_rate_limit : '';
     document.getElementById('form_custom_burst').value = d.custom_rate_burst > 0 ? d.custom_rate_burst : '';
     toggleTargetInput();
-    toggleGeoIpInput();
     document.getElementById('domainModal').classList.remove('hidden');
 }
 
@@ -1734,8 +1673,6 @@ async function saveDomain(e) {
         domain: document.getElementById('form_domain_name').value,
         is_wildcard: document.getElementById('form_is_wildcard').checked ? 1 : 0,
         require_zt_access: document.getElementById('form_require_zt_access').checked ? 1 : 0,
-        geoip_mode: document.getElementById('form_geoip_mode').value,
-        geoip_countries: document.getElementById('form_geoip_countries').value,
         target_type: document.getElementById('form_target_type').value,
         target_value: document.getElementById('form_target_value').value,
         custom_rate_limit: document.getElementById('form_custom_rate').value || 0,
