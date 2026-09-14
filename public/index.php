@@ -494,7 +494,6 @@ async function handleLogin(e) {
         <button onclick="openTab('cloudflare')" class="px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-800 text-slate-300 tab-btn" id="tab-btn-cloudflare"><i class="fa-brands fa-cloudflare mr-1.5 text-amber-500"></i>Cloudflare Shield & Zero Trust</button>
         <button onclick="openTab('logs')" class="px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-800 text-slate-300 tab-btn" id="tab-btn-logs"><i class="fa-solid fa-terminal mr-1.5"></i>Live Logs</button>
         <button onclick="openTab('monitor')" class="px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-800 text-slate-300 tab-btn" id="tab-btn-monitor"><i class="fa-solid fa-ban mr-1.5"></i>Ban Monitor</button>
-        <button onclick="openTab('files')" class="px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-800 text-slate-300 tab-btn" id="tab-btn-files"><i class="fa-solid fa-folder-tree mr-1.5 text-yellow-500"></i>File Manager</button>
         <button onclick="logout()" class="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-md text-sm font-medium transition"><i class="fa-solid fa-power-off mr-1"></i>Logout</button>
     </div>
 </nav>
@@ -910,30 +909,6 @@ async function handleLogin(e) {
         </div>
     </div>
 
-    <!-- TAB 6: FILE MANAGER (TINYFILEMANAGER) -->
-    <div id="tab-files" class="tab-content hidden">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h2 class="text-xl font-bold text-white flex items-center">
-                    <i class="fa-solid fa-folder-open text-yellow-500 mr-2"></i>Web File Manager
-                </h2>
-                <p class="text-sm text-slate-400">Kelola file web dan direktori di <code>/var/www</code> langsung dari browser dengan TinyFileManager bawaan.</p>
-            </div>
-            <div class="flex items-center space-x-2">
-                <a href="filemanager.php" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center">
-                    <i class="fa-solid fa-arrow-up-right-from-square mr-1.5"></i>Buka Tab Baru
-                </a>
-                <button onclick="reloadFileManager()" class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-600/30 rounded-lg text-xs font-semibold transition flex items-center">
-                    <i class="fa-solid fa-rotate mr-1.5"></i>Reload
-                </button>
-            </div>
-        </div>
-
-        <div class="card p-0 overflow-hidden border border-slate-800 rounded-xl" style="height: 750px;">
-            <iframe id="fileManagerIframe" src="about:blank" class="w-full h-full border-0 bg-white" title="Tiny File Manager"></iframe>
-        </div>
-    </div>
-
     <!-- TAB 5: BAN MONITOR -->
     <div id="tab-monitor" class="tab-content hidden">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -1110,18 +1085,6 @@ function openTab(tab) {
         fetchLogs();
     } else if (tab === 'cloudflare') {
         fetchCfZones();
-    } else if (tab === 'files') {
-        const iframe = document.getElementById('fileManagerIframe');
-        if (iframe && (iframe.src === 'about:blank' || iframe.src === '' || iframe.src.endsWith('about:blank'))) {
-            iframe.src = 'filemanager.php';
-        }
-    }
-}
-
-function reloadFileManager() {
-    const iframe = document.getElementById('fileManagerIframe');
-    if (iframe) {
-        iframe.src = 'filemanager.php?r=' + Date.now();
     }
 }
 
