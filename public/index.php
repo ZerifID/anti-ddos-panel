@@ -896,8 +896,8 @@ async function handleLogin(e) {
 </div>
 
 <!-- MODAL ADD/EDIT DOMAIN -->
-<div id="domainModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden overflow-y-auto flex items-center justify-center p-4 py-8">
-    <div class="card p-6 w-full max-w-xl shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+<div id="domainModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="card p-6 w-full max-w-xl shadow-2xl">
         <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
             <h3 class="font-bold text-white text-lg" id="modalTitle">Tambah Konfigurasi Domain</h3>
             <button onclick="closeDomainModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -945,10 +945,10 @@ async function handleLogin(e) {
 
             <!-- GEOIP COUNTRY FILTER / BLOCKER -->
             <div class="p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-lg mb-4">
-                <span class="font-bold text-sm text-emerald-400 block mb-2"><i class="fa-solid fa-earth-americas mr-1"></i>GeoIP Country Blocker & Whitelister</span>
+                <span class="font-bold text-sm text-emerald-400 block mb-2"><i class="fa-solid fa-earth-americas mr-1"></i>Cloudflare Edge WAF GeoIP Blocker</span>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
                     <div>
-                        <label class="block text-xs text-slate-300 mb-1 font-medium">Mode Proteksi Wilayah</label>
+                        <label class="block text-xs text-slate-300 mb-1 font-medium">Mode Proteksi Edge WAF (Cloudflare)</label>
                         <select id="form_geoip_mode" onchange="toggleGeoIpInput()" class="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white">
                             <option value="off">Off (Izinkan Semua Negara)</option>
                             <option value="allow_only">Hanya Izinkan Negara Tertentu (Allow Only)</option>

@@ -164,6 +164,86 @@ class CloudflareAPI {
     public static function deleteAccessApp($zoneId, $appId, $apiKey, $apiEmail = '') {
         return self::request("/zones/{$zoneId}/access/apps/{$appId}", 'DELETE', [], $apiKey, $apiEmail);
     }
+
+    // CLOUDFLARE EDGE WAF CUSTOM RULES (GeoIP & Edge Protection)
+    public static function getCustomWafRuleset($zoneId, $apiKey = '', $apiEmail = '') {
+        return self::request("/zones/{$zoneId}/rulesets/phases/http_request_firewall_custom/entrypoint", 'GET', [], $apiKey, $apiEmail);
+    }
+
+    public static function syncZoneGeoIpRules($zoneId, $rules = [], $apiKey = '', $apiEmail = '') {
+        if (empty($zoneId)) return ['success' => false, 'errors' => [['message' => 'Zone ID tidak boleh kosong']]];
+        
+        $payload = [
+            'rules' => $rules
+        ];
+        return self::request("/zones/{$zoneId}/rulesets/phases/http_request_firewall_custom/entrypoint", 'PUT', $payload, $apiKey, $apiEmail);
+    }
+
+    public static function syncAllEdgeWafRules() {
+        $db = PanelEngine::getDB();
+        $settings = PanelEngine::getSettings();
+        $apiKey = $settings['cf_api_key'] ?? '';
+        $apiEmail = $settings['cf_api_email'] ?? '';
+        $defaultZone = $settings['cf_default_zone_id'] ?? '';
+
+        if (empty($apiKey) || empty($apiEmail)) {
+            return ['status' => false, 'message' => 'Cloudflare API Key/Email belum dikonfigurasi'];
+        }
+
+        // Get all active domains
+        $domains = $db->query("SELECT * FROM domains WHERE status = 1")->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Group domains by zone
+        $zoneDomains = [];
+        foreach ($domains as $d) {
+            $zId = !empty($d['cf_zone_id']) ? $d['cf_zone_id'] : $defaultZone;
+            if (!empty($zId)) {
+                $zoneDomains[$zId][] = $d;
+            }
+        }
+
+        $results = [];
+        foreach ($zoneDomains as $zId => $dList) {
+            $wafRules = [];
+            foreach ($dList as $d) {
+                $domainName = $d['domain'];
+                $geoMode = $d['geoip_mode'] ?? 'off';
+                $geoCountries = strtoupper(trim($d['geoip_countries'] ?? ''));
+
+                if ($geoMode !== 'off' && !empty($geoCountries)) {
+                    $cArray = array_map('trim', explode(',', $geoCountries));
+                    $cArray = array_filter($cArray);
+                    if (!empty($cArray)) {
+                        $quotedCountries = '{"' . implode('", "', $cArray) . '"}';
+                        $hostCondition = empty($d['is_wildcard']) 
+                            ? 'http.host eq "' . $domainName . '"' 
+                            : '(http.host eq "' . $domainName . '" or http.host ends_with ".' . $domainName . '")';
+
+                        if ($geoMode === 'allow_only') {
+                            $wafRules[] = [
+                                'action' => 'block',
+                                'expression' => '(' . $hostCondition . ' and not ip.geoip.country in ' . $quotedCountries . ')',
+                                'description' => 'GeoIP Whitelist (Only ' . $geoCountries . ') for ' . $domainName . ' [Panel Managed]',
+                                'enabled' => true
+                            ];
+                        } elseif ($geoMode === 'block_only') {
+                            $wafRules[] = [
+                                'action' => 'block',
+                                'expression' => '(' . $hostCondition . ' and ip.geoip.country in ' . $quotedCountries . ')',
+                                'description' => 'GeoIP Blacklist (Block ' . $geoCountries . ') for ' . $domainName . ' [Panel Managed]',
+                                'enabled' => true
+                            ];
+                        }
+                    }
+                }
+            }
+
+            $res = self::syncZoneGeoIpRules($zId, $wafRules, $apiKey, $apiEmail);
+            $results[$zId] = $res;
+        }
+
+        return ['status' => true, 'data' => $results];
+    }
 }
 
 class PanelEngine {
@@ -476,7 +556,8 @@ maxretry = {$maxretry}
         if (strpos($testOut, 'syntax is ok') !== false && strpos($testOut, 'test is successful') !== false) {
             shell_exec('sudo /usr/sbin/nginx -s reload');
             self::syncFail2ban();
-            return ['status' => true, 'message' => 'Nginx & Fail2ban berhasil disinkronkan dan direload!'];
+            try { CloudflareAPI::syncAllEdgeWafRules(); } catch (Exception $e) {}
+            return ['status' => true, 'message' => 'Nginx, Fail2ban, & Cloudflare Edge WAF berhasil disinkronkan!'];
         } else {
             return ['status' => false, 'message' => 'Nginx Test Gagal: ' . $testOut];
         }
