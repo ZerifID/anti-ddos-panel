@@ -45,7 +45,7 @@ $use_highlightjs = true;
 $highlightjs_style = 'vs';
 $edit_files = true;
 $default_timezone = 'Asia/Jakarta';
-$root_path = '/';
+$root_path = '';
 $root_url = '';
 $http_host = $_SERVER['HTTP_HOST'];
 
@@ -417,9 +417,11 @@ if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'])) {
 }
 
 // clean and check $root_path
-$root_path = rtrim($root_path, '\\/');
 $root_path = str_replace('\\', '/', $root_path);
-if (!@is_dir($root_path)) {
+if ($root_path !== '/' && $root_path !== '') {
+    $root_path = rtrim($root_path, '/');
+}
+if (!@is_dir($root_path === '' ? '/' : $root_path)) {
     echo "<h1>" . lng('Root path') . " \"{$root_path}\" " . lng('not found!') . " </h1>";
     exit;
 }
