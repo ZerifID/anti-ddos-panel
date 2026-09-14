@@ -339,6 +339,24 @@ if (isset($_GET['api'])) {
         exit;
     }
 
+    if ($_GET['api'] === 'unban_all_ips') {
+        // 1. Unban from all Fail2ban jails
+        shell_exec("sudo fail2ban-client unban --all 2>&1");
+        
+        // 2. Clear Nginx denylist configuration file
+        $denylistFile = '/etc/nginx/conf.d/fail2ban-denylist.conf';
+        if (file_exists($denylistFile)) {
+            file_put_contents($denylistFile, "# Fail2ban Nginx Dynamic Denylist\n");
+            shell_exec("sudo /usr/sbin/nginx -t 2>/dev/null && sudo /usr/sbin/nginx -s reload 2>/dev/null");
+        }
+
+        // 3. Sync & Reload Fail2ban
+        shell_exec("sudo fail2ban-client reload 2>&1");
+
+        echo json_encode(['status' => true, 'message' => 'Semua IP yang terblokir berhasil di-unban & dibersihkan!']);
+        exit;
+    }
+
     if ($_GET['api'] === 'unban_ip') {
         $data = json_decode(file_get_contents('php://input'), true);
         $ip = escapeshellarg($data['ip'] ?? '');
@@ -864,14 +882,19 @@ async function handleLogin(e) {
 
     <!-- TAB 5: BAN MONITOR -->
     <div id="tab-monitor" class="tab-content hidden">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
                 <h2 class="text-xl font-bold text-white">Live Ban & Attack Monitor</h2>
                 <p class="text-sm text-slate-400">Daftar IP yang diblokir otomatis oleh Fail2ban karena melanggar threshold</p>
             </div>
-            <button onclick="loadDashboardData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-medium">
-                <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
-            </button>
+            <div class="flex items-center space-x-2">
+                <button onclick="unbanAllIps()" class="px-3 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800 text-red-300 rounded-md text-xs font-semibold transition">
+                    <i class="fa-solid fa-trash-can mr-1"></i>Hapus Semua IP Banned
+                </button>
+                <button onclick="loadDashboardData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-xs font-medium">
+                    <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
+                </button>
+            </div>
         </div>
 
         <div class="card overflow-hidden">
@@ -1751,6 +1774,18 @@ async function saveSettings(e) {
         }
     } catch (err) {
         alert('Error');
+    }
+}
+
+async function unbanAllIps() {
+    if (!confirm('Apakah kamu yakin ingin meng-unban dan menghapus SEMUA IP yang sedang diblokir?')) return;
+    try {
+        const res = await fetch('?api=unban_all_ips', { method: 'POST' });
+        const json = await res.json();
+        alert(json.message || 'Semua IP berhasil di-unban!');
+        loadDashboardData();
+    } catch (e) {
+        alert('Gagal meng-unban semua IP: ' + e);
     }
 }
 
