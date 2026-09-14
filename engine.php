@@ -524,9 +524,43 @@ maxretry = {$maxretry}
         if (strpos($testOut, 'syntax is ok') !== false && strpos($testOut, 'test is successful') !== false) {
             shell_exec('sudo /usr/sbin/nginx -s reload');
             self::syncFail2ban();
+            self::syncHosts();
             return ['status' => true, 'message' => 'Nginx & Fail2ban berhasil disinkronkan dan direload!'];
         } else {
             return ['status' => false, 'message' => 'Nginx Test Gagal: ' . $testOut];
         }
+    }
+
+    public static function syncHosts() {
+        $db = self::getDB();
+        $domains = $db->query("SELECT local_domain FROM domains WHERE status = 1 AND local_domain IS NOT NULL AND local_domain != ''")->fetchAll(PDO::FETCH_COLUMN);
+        
+        $hostsFile = '/etc/hosts';
+        if (!file_exists($hostsFile) || !is_readable($hostsFile)) {
+            return;
+        }
+
+        $currentContent = file_get_contents($hostsFile);
+        $startMarker = "# --- BEGIN DDOS-PANEL-LOCAL-DOMAINS ---";
+        $endMarker = "# --- END DDOS-PANEL-LOCAL-DOMAINS ---";
+
+        // Remove existing block if present
+        $pattern = '/' . preg_quote($startMarker, '/') . '.*?' . preg_quote($endMarker, '/') . '\n?/s';
+        $cleanedContent = preg_replace($pattern, '', $currentContent);
+        $cleanedContent = rtrim($cleanedContent);
+
+        $newBlock = "";
+        if (!empty($domains)) {
+            $uniqueDomains = array_unique(array_filter(array_map('trim', $domains)));
+            if (!empty($uniqueDomains)) {
+                $newBlock = "\n" . $startMarker . "\n";
+                foreach ($uniqueDomains as $ld) {
+                    $newBlock .= "127.0.0.1\t{$ld}\n";
+                }
+                $newBlock .= $endMarker . "\n";
+            }
+        }
+
+        file_put_contents($hostsFile, $cleanedContent . $newBlock);
     }
 }
