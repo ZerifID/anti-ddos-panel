@@ -195,6 +195,17 @@ if (isset($_GET['api'])) {
         exit;
     }
 
+    if ($_GET['api'] === 'cf_delete_all_rules') {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $zoneId = $data['zone_id'] ?? $settings['cf_default_zone_id'] ?? '';
+        $apiKey = $settings['cf_api_key'] ?? '';
+        $apiEmail = $settings['cf_api_email'] ?? '';
+
+        $res = CloudflareAPI::deleteAllIpAccessRules($zoneId, $apiKey, $apiEmail);
+        echo json_encode($res);
+        exit;
+    }
+
     if ($_GET['api'] === 'cf_purge_cache') {
         $data = json_decode(file_get_contents('php://input'), true);
         $zoneId = $data['zone_id'] ?? $settings['cf_default_zone_id'] ?? '';
@@ -768,6 +779,12 @@ async function handleLogin(e) {
                 </form>
 
                 <!-- Active Cloudflare Rules Table -->
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Daftar IP Banned di Cloudflare</span>
+                    <button type="button" onclick="deleteAllCfRules()" class="px-2.5 py-1 bg-red-950/40 hover:bg-red-900/60 border border-red-800 text-red-300 rounded text-xs font-semibold transition">
+                        <i class="fa-solid fa-trash-can mr-1"></i>Hapus Semua IP di CF
+                    </button>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
@@ -1439,6 +1456,27 @@ async function deleteCfRule(ruleId) {
         }
     } catch (e) {
         alert('Gagal');
+    }
+}
+
+async function deleteAllCfRules() {
+    const zoneId = document.getElementById('cf_zone_selector').value;
+    if (!zoneId) {
+        alert('Pilih Domain / Zone terlebih dahulu di dropdown atas!');
+        return;
+    }
+    if (!confirm('Apakah kamu yakin ingin menghapus SEMUA IP yang diblokir di Cloudflare untuk domain ini?')) return;
+    try {
+        const res = await fetch('?api=cf_delete_all_rules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({zone_id: zoneId})
+        });
+        const json = await res.json();
+        alert('Hasil: Berhasil menghapus ' + (json.deleted_count ?? 0) + ' IP di Cloudflare!');
+        loadCfZoneStatus(zoneId);
+    } catch (e) {
+        alert('Gagal mengosongkan rule Cloudflare: ' + e);
     }
 }
 

@@ -80,6 +80,20 @@ class CloudflareAPI {
         return true;
     }
 
+    public static function deleteAllIpAccessRules($zoneId, $apiKey, $apiEmail = '') {
+        $rules = self::getIpAccessRules($zoneId, $apiKey, $apiEmail);
+        $deleted = 0;
+        if (!empty($rules['result'])) {
+            foreach ($rules['result'] as $r) {
+                if (isset($r['id'])) {
+                    self::deleteIpAccessRule($zoneId, $r['id'], $apiKey, $apiEmail);
+                    $deleted++;
+                }
+            }
+        }
+        return ['status' => true, 'deleted_count' => $deleted];
+    }
+
     public static function purgeCache($zoneId, $apiKey, $apiEmail = '') {
         return self::request("/zones/{$zoneId}/purge_cache", 'POST', ['purge_everything' => true], $apiKey, $apiEmail);
     }
