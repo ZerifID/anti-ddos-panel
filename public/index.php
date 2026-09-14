@@ -947,8 +947,8 @@ async function handleLogin(e) {
 </div>
 
 <!-- MODAL ADD/EDIT DOMAIN -->
-<div id="domainModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-xl shadow-2xl">
+<div id="domainModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="card p-6 w-full max-w-xl shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
             <h3 class="font-bold text-white text-lg" id="modalTitle">Tambah Konfigurasi Domain</h3>
             <button onclick="closeDomainModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -1027,8 +1027,8 @@ async function handleLogin(e) {
 </div>
 
 <!-- MODAL CREATE ZERO TRUST APP -->
-<div id="ztAppModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="card p-6 w-full max-w-lg shadow-2xl">
+<div id="ztAppModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="card p-6 w-full max-w-lg shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
             <h3 class="font-bold text-white text-lg flex items-center"><i class="fa-solid fa-user-shield text-purple-400 mr-2"></i>Buat Zero Trust Access App</h3>
             <button onclick="closeCreateAccessModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
