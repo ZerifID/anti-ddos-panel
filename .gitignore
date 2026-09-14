@@ -1,0 +1,11 @@
+# Database
+data/panel.db
+data/panel.db-journal
+data/*.sqlite
+
+# Logs & Cache
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
