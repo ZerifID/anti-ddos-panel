@@ -45,7 +45,7 @@ $use_highlightjs = true;
 $highlightjs_style = 'vs';
 $edit_files = true;
 $default_timezone = 'Asia/Jakarta';
-$root_path = '/var/www';
+$root_path = '/';
 $root_url = '';
 $http_host = $_SERVER['HTTP_HOST'];
 
